@@ -1,29 +1,44 @@
 import { shimmer } from 'plugsy';
 
+import { ChargeActionNotetag, IncludesChargeActionNotetag } from '../types';
 import ChargeManager from './ChargeManager';
-import { ChargeAction } from '../types';
-
 export default class ChargePlugin {
-  public tagged: Record<number | string, any> = {};
+  public tagged: Record<number | string, ChargeActionNotetag> = {};
   public charges: Map<Game_BattlerBase, ChargeManager> = new Map();
+
+  public constructor() {
+    const skills = $plugsy.notetags.$dataSkills;
+    const items = $plugsy.notetags.$dataItems;
+    for (const hash of [skills, items]) {
+      for (const key in hash) {
+        if (hash.hasOwnProperty(key)) {
+          const nt = hash[key];
+          if (this.isChargeNotetag(nt)) {
+            this.tagged[key] = nt.Charge || nt.charge;
+          }
+        }
+      }
+    }
+    this.shim();
+  }
 
   public clear(): void {
     this.charges = new Map();
   }
 
-  public getAction(id: number): ChargeAction | null {
+  public getAction(id: number): ChargeActionNotetag | null {
     const tagged = this.tagged[id];
-    return tagged ? tagged.Charge || null : null;
+    return tagged ? tagged || null : null;
   }
 
-  public canInput = (battler: Game_BattlerBase, old: Function): boolean => {
+  public canInput = (battler: Game_BattlerBase, old: () => boolean): boolean => {
     const charge = this.charges.get(battler);
     return charge ? old() && !charge.current : old();
   };
 
   public performChargeAction = (
     _log: Window_BattleLog,
-    _fn: null,
+    _fn: never,
     actor: Game_Battler,
     action: Game_Action
   ): void => {
@@ -39,7 +54,11 @@ export default class ChargePlugin {
 
   public startAction = (
     log: Window_BattleLog,
-    startAction: Function,
+    startAction: (
+      actor: Game_Battler,
+      action: Game_Action,
+      targets: Game_Battler[]
+    ) => void,
     actor: Game_Battler,
     action: Game_Action,
     targets: Game_Battler[]
@@ -61,9 +80,9 @@ export default class ChargePlugin {
 
   public endAction = (
     _log: Window_BattleLog,
-    end: Function,
+    end: (actor: Game_Battler) => void,
     actor: Game_Battler
-  ) => {
+  ): void => {
     const manager = this.charges.get(actor);
     if (manager && manager.current && manager.current.turns <= 0) {
       manager.destroyAction();
@@ -73,9 +92,9 @@ export default class ChargePlugin {
 
   public startBattle = (
     _manager: BattleManagerStatic,
-    start: Function,
+    start: (...args: any[]) => void,
     ...args: any[]
-  ) => {
+  ): void => {
     this.clear();
     const party = $gameParty.members();
     const troop = $gameTroop.members();
@@ -87,7 +106,7 @@ export default class ChargePlugin {
     start(...args);
   };
 
-  public processTurn = (bm: BattleManagerStatic, turn: Function) => {
+  public processTurn = (bm: BattleManagerStatic, turn: () => void): void => {
     const actor = bm._subject;
     const manager = this.charges.get(actor);
     if (manager && manager.current) {
@@ -96,27 +115,28 @@ export default class ChargePlugin {
     turn();
   };
 
-  public constructor() {
-    const skills = window.$plugsy.notetags.$dataSkills;
-    const items = window.$plugsy.notetags.$dataItems;
-    for (const arr of [skills, items]) {
-      for (const key in arr) {
-        this.tagged[key] = arr[key];
-      }
-    }
-
+  public shim(): void {
     shimmer(Game_BattlerBase.prototype, {
       canInput: this.canInput
     });
     shimmer(Window_BattleLog.prototype, {
+      endAction: this.endAction,
       // @ts-ignore
       performChargeAction: this.performChargeAction,
-      startAction: this.startAction,
-      endAction: this.endAction
+      startAction: this.startAction
     });
     shimmer(BattleManager, {
       processTurn: this.processTurn,
       startBattle: this.startBattle
     });
+  }
+
+  public isChargeNotetag(
+    notetag: Record<string, any>
+  ): notetag is IncludesChargeActionNotetag {
+    if ('Charge' in notetag || 'charge' in notetag) {
+      return true;
+    }
+    return false;
   }
 }

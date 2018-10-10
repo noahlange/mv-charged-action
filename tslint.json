@@ -1,0 +1,11 @@
+{
+  "extends": [
+    "tslint:latest",
+    "tslint-config-prettier"
+  ],
+  "rules": {
+    "no-implicit-dependencies": [true, "dev"],
+    "variable-name": [ true, "allow-leading-underscore" ],
+    "interface-name": false
+  }
+}

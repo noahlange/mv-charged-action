@@ -1,5 +1,13 @@
 const { BannerPlugin } = require('webpack');
 
+const banner = `
+
+  Plugin enabling variable-duration skill charges.
+  Loosely patterned off of Victor Sant's ChargeActions plugin.
+  You'll need to have Plugsy installed in order to use this plugin.
+
+`.trim();
+
 module.exports = {
   mode: 'development',
   entry: {
@@ -11,13 +19,7 @@ module.exports = {
   },
   optimization: {},
   plugins: [
-    new BannerPlugin({
-      banner: `
-  Plugin enabling variable-duration skill charges.
-  Loosely patterned off of Victor Sant's ChargeActions plugin.
-  You'll need to have Plugsy installed in order to use this plugin.
-      `
-    })
+    new BannerPlugin({ banner })
   ],
   externals: {
     plugsy: 'plugsy'
