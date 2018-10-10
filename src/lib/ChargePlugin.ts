@@ -31,7 +31,10 @@ export default class ChargePlugin {
     return tagged ? tagged || null : null;
   }
 
-  public canInput = (battler: Game_BattlerBase, old: () => boolean): boolean => {
+  public canInput = (
+    battler: Game_BattlerBase,
+    old: () => boolean
+  ): boolean => {
     const charge = this.charges.get(battler);
     return charge ? old() && !charge.current : old();
   };
@@ -115,9 +118,23 @@ export default class ChargePlugin {
     turn();
   };
 
+  public useItem = (
+    obj: Game_Battler,
+    orig: (item: RPG.UsableItem) => void,
+    item: RPG.UsableItem
+  ) => {
+    const charge = this.charges.get(obj);
+    if (!charge || !charge.current) {
+      orig(item);
+    }
+  };
+
   public shim(): void {
     shimmer(Game_BattlerBase.prototype, {
       canInput: this.canInput
+    });
+    shimmer(Game_Battler.prototype, {
+      useItem: this.useItem
     });
     shimmer(Window_BattleLog.prototype, {
       endAction: this.endAction,
